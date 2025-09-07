@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mail-service-config
+  namespace: mail-service
+  labels:
+    app.kubernetes.io/name: mail-service
+    app.kubernetes.io/version: "0.1.0"
+data:
+  KUBE_MAIL_HOST: "kube-mail.kube-system.svc.cluster.local"
+  KUBE_MAIL_PORT: "25"
+  FROM_EMAIL: "info@bionicaisolutions.com"
+  FROM_NAME: "Bionic AI Solutions"
+  APP_NAME: "Mail Service"
+  APP_VERSION: "0.1.0"
+  DEBUG: "false"
+  LOG_LEVEL: "INFO"
+  CORS_ORIGINS: '["http://localhost:3000", "http://localhost:8080"]'

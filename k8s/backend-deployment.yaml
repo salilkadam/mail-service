@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mail-service-backend
+  namespace: mail-service
+  labels:
+    app.kubernetes.io/name: mail-service-backend
+    app.kubernetes.io/version: "0.1.0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mail-service-backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mail-service-backend
+        app.kubernetes.io/version: "0.1.0"
+    spec:
+      containers:
+      - name: backend
+        image: mail-service-backend:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: KUBE_MAIL_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: mail-service-config
+              key: KUBE_MAIL_HOST
+        - name: KUBE_MAIL_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: mail-service-config
+              key: KUBE_MAIL_PORT
+        - name: FROM_EMAIL
+          valueFrom:
+            configMapKeyRef:
+              name: mail-service-config
+              key: FROM_EMAIL
+        - name: FROM_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: mail-service-config
+              key: FROM_NAME
+        - name: APP_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: mail-service-config
+              key: APP_NAME
+        - name: APP_VERSION
+          valueFrom:
+            configMapKeyRef:
+              name: mail-service-config
+              key: APP_VERSION
+        - name: DEBUG
+          valueFrom:
+            configMapKeyRef:
+              name: mail-service-config
+              key: DEBUG
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: mail-service-config
+              key: LOG_LEVEL
+        - name: CORS_ORIGINS
+          valueFrom:
+            configMapKeyRef:
+              name: mail-service-config
+              key: CORS_ORIGINS
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        volumeMounts:
+        - name: ai-models
+          mountPath: /opt/ai-models
+          readOnly: true
+      volumes:
+      - name: ai-models
+        persistentVolumeClaim:
+          claimName: ai-models-pvc
+      restartPolicy: Always

@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mail-service-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - KUBE_MAIL_HOST=kube-mail.kube-system.svc.cluster.local
+      - KUBE_MAIL_PORT=25
+      - FROM_EMAIL=info@bionicaisolutions.com
+      - FROM_NAME=Bionic AI Solutions
+      - DEBUG=true
+      - LOG_LEVEL=INFO
+      - CORS_ORIGINS=["http://localhost:3000", "http://localhost:8080"]
+    volumes:
+      - ./backend:/app
+      - /opt/ai-models:/opt/ai-models:ro
+    networks:
+      - mail-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: mail-service-frontend
+    ports:
+      - "3000:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000/api/v1
+    depends_on:
+      - backend
+    networks:
+      - mail-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  mail-network:
+    driver: bridge
+
+volumes:
+  ai-models:
+    external: true

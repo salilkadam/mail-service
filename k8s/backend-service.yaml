@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mail-service-backend
+  namespace: mail-service
+  labels:
+    app.kubernetes.io/name: mail-service-backend
+    app.kubernetes.io/version: "0.1.0"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app.kubernetes.io/name: mail-service-backend
