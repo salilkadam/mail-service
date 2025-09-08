@@ -17,9 +17,11 @@ spec:
         app.kubernetes.io/name: mail-service-frontend
         app.kubernetes.io/version: "0.1.0"
     spec:
+      imagePullSecrets:
+      - name: docker-registry-secret
       containers:
       - name: frontend
-        image: mail-service-frontend:latest
+        image: docker4zerocool/mail-service-frontend:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 80

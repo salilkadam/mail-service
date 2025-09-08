@@ -1,10 +1,34 @@
 #!/bin/bash
-# Deployment script for the mail service
+
+# Mail Service Kubernetes Deployment Script
+# Usage: ./deploy.sh [staging|production] [image-tag]
 
 set -e
 
-echo "🚀 Mail Service Deployment Script"
-echo "=================================="
+NAMESPACE=${1:-staging}
+IMAGE_TAG=${2:-latest}
+REGISTRY=${REGISTRY:-ghcr.io}
+REPOSITORY=${REPOSITORY:-your-username/mail-service}
+
+# Validate namespace
+if [[ "$NAMESPACE" != "staging" && "$NAMESPACE" != "production" ]]; then
+    echo "Error: Namespace must be 'staging' or 'production'"
+    exit 1
+fi
+
+# Set namespace suffix
+if [[ "$NAMESPACE" == "production" ]]; then
+    NAMESPACE_SUFFIX="prod"
+else
+    NAMESPACE_SUFFIX="staging"
+fi
+
+FULL_NAMESPACE="mail-service-$NAMESPACE_SUFFIX"
+
+echo "🚀 Deploying Mail Service to $NAMESPACE environment"
+echo "📦 Namespace: $FULL_NAMESPACE"
+echo "🏷️  Image Tag: $IMAGE_TAG"
+echo "📋 Registry: $REGISTRY/$REPOSITORY"
 
 # Check if kubectl is available
 if ! command -v kubectl &> /dev/null; then
@@ -12,168 +36,81 @@ if ! command -v kubectl &> /dev/null; then
     exit 1
 fi
 
-# Check if helm is available
-if ! command -v helm &> /dev/null; then
-    echo "❌ helm is not installed or not in PATH"
+# Check if cluster is accessible
+if ! kubectl cluster-info &> /dev/null; then
+    echo "❌ Cannot connect to Kubernetes cluster"
     exit 1
 fi
 
-echo "✅ Prerequisites check passed"
+echo "✅ Kubernetes cluster is accessible"
 
-# Function to deploy kube-mail
-deploy_kube_mail() {
-    echo "📧 Deploying kube-mail..."
-    
-    # Add helm repository
-    helm repo add mittwald https://helm.mittwald.de
-    helm repo update
-    
-    # Install kube-mail
-    helm install kube-mail mittwald/kube-mail --namespace kube-system --create-namespace
-    
-    echo "✅ kube-mail deployed successfully"
-}
+# Create namespace if it doesn't exist
+echo "📁 Creating namespace..."
+kubectl apply -f k8s/namespace-$NAMESPACE.yaml
 
-# Function to deploy mail service
-deploy_mail_service() {
-    echo "📦 Deploying mail service..."
-    
-    # Create namespace
-    kubectl apply -f k8s/namespace.yaml
-    
-    # Apply configurations
-    kubectl apply -f k8s/configmap.yaml
-    kubectl apply -f k8s/pvc.yaml
-    
-    # Deploy backend
-    kubectl apply -f k8s/backend-deployment.yaml
-    kubectl apply -f k8s/backend-service.yaml
-    
-    # Deploy frontend
-    kubectl apply -f k8s/frontend-deployment.yaml
-    kubectl apply -f k8s/frontend-service.yaml
-    
-    # Apply ingress
-    kubectl apply -f k8s/ingress.yaml
-    
-    echo "✅ Mail service deployed successfully"
-}
+# Update image tags in manifests
+echo "🏷️  Updating image tags..."
+cp k8s/backend-deployment.yaml k8s/backend-deployment-temp.yaml
+cp k8s/frontend-deployment.yaml k8s/frontend-deployment-temp.yaml
 
-# Function to configure kube-mail
-configure_kube_mail() {
-    echo "⚙️  Configuring kube-mail..."
-    
-    # Apply SMTP server configuration
-    kubectl apply -f k8s/kube-mail-smtp-server.yaml
-    
-    # Apply email policy
-    kubectl apply -f k8s/kube-mail-email-policy.yaml
-    
-    echo "✅ kube-mail configured successfully"
-}
+# Update backend image
+sed -i "s|image: mail-service-backend:latest|image: $REGISTRY/$REPOSITORY/backend:$IMAGE_TAG|g" k8s/backend-deployment-temp.yaml
+sed -i "s|namespace: mail-service|namespace: $FULL_NAMESPACE|g" k8s/backend-deployment-temp.yaml
 
-# Function to check deployment status
-check_status() {
-    echo "🔍 Checking deployment status..."
-    
-    # Check kube-mail
-    echo "kube-mail pods:"
-    kubectl get pods -n kube-system -l app.kubernetes.io/name=kube-mail
-    
-    # Check mail service
-    echo "Mail service pods:"
-    kubectl get pods -n mail-service
-    
-    # Check services
-    echo "Services:"
-    kubectl get services -n mail-service
-    
-    echo "✅ Status check completed"
-}
+# Update frontend image
+sed -i "s|image: mail-service-frontend:latest|image: $REGISTRY/$REPOSITORY/frontend:$IMAGE_TAG|g" k8s/frontend-deployment-temp.yaml
+sed -i "s|namespace: mail-service|namespace: $FULL_NAMESPACE|g" k8s/frontend-deployment-temp.yaml
 
-# Main deployment logic
-main() {
-    local deploy_kube_mail_flag=false
-    local deploy_service_flag=false
-    local configure_flag=false
-    local status_flag=false
-    
-    # Parse command line arguments
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --kube-mail)
-                deploy_kube_mail_flag=true
-                shift
-                ;;
-            --service)
-                deploy_service_flag=true
-                shift
-                ;;
-            --configure)
-                configure_flag=true
-                shift
-                ;;
-            --status)
-                status_flag=true
-                shift
-                ;;
-            --all)
-                deploy_kube_mail_flag=true
-                deploy_service_flag=true
-                configure_flag=true
-                shift
-                ;;
-            -h|--help)
-                echo "Usage: $0 [OPTIONS]"
-                echo "Options:"
-                echo "  --kube-mail    Deploy kube-mail"
-                echo "  --service      Deploy mail service"
-                echo "  --configure    Configure kube-mail"
-                echo "  --status       Check deployment status"
-                echo "  --all          Deploy everything"
-                echo "  -h, --help     Show this help message"
-                exit 0
-                ;;
-            *)
-                echo "Unknown option: $1"
-                echo "Use -h or --help for usage information"
-                exit 1
-                ;;
-        esac
-    done
-    
-    # If no flags specified, show help
-    if [[ "$deploy_kube_mail_flag" == false && "$deploy_service_flag" == false && "$configure_flag" == false && "$status_flag" == false ]]; then
-        echo "No deployment options specified."
-        echo "Use -h or --help for usage information"
-        exit 1
-    fi
-    
-    # Execute requested operations
-    if [[ "$deploy_kube_mail_flag" == true ]]; then
-        deploy_kube_mail
-    fi
-    
-    if [[ "$deploy_service_flag" == true ]]; then
-        deploy_mail_service
-    fi
-    
-    if [[ "$configure_flag" == true ]]; then
-        configure_kube_mail
-    fi
-    
-    if [[ "$status_flag" == true ]]; then
-        check_status
-    fi
-    
-    echo ""
-    echo "🎉 Deployment completed successfully!"
-    echo ""
-    echo "Next steps:"
-    echo "1. Configure your SMTP server in k8s/kube-mail-smtp-server.yaml"
-    echo "2. Update the ingress hostname in k8s/ingress.yaml"
-    echo "3. Access the application at the configured hostname"
-}
+# Update other manifests
+cp k8s/configmap.yaml k8s/configmap-temp.yaml
+cp k8s/pvc.yaml k8s/pvc-temp.yaml
+cp k8s/backend-service.yaml k8s/backend-service-temp.yaml
+cp k8s/frontend-service.yaml k8s/frontend-service-temp.yaml
+cp k8s/ingress.yaml k8s/ingress-temp.yaml
 
-# Run main function
-main "$@"
+# Update namespaces in all manifests
+for file in k8s/*-temp.yaml; do
+    sed -i "s|namespace: mail-service|namespace: $FULL_NAMESPACE|g" "$file"
+done
+
+# Apply manifests
+echo "📋 Applying Kubernetes manifests..."
+
+# Apply in order
+kubectl apply -f k8s/configmap-temp.yaml
+kubectl apply -f k8s/pvc-temp.yaml
+kubectl apply -f k8s/backend-deployment-temp.yaml
+kubectl apply -f k8s/backend-service-temp.yaml
+kubectl apply -f k8s/frontend-deployment-temp.yaml
+kubectl apply -f k8s/frontend-service-temp.yaml
+kubectl apply -f k8s/ingress-temp.yaml
+
+# Wait for deployments
+echo "⏳ Waiting for deployments to be ready..."
+kubectl rollout status deployment/mail-service-backend -n $FULL_NAMESPACE --timeout=300s
+kubectl rollout status deployment/mail-service-frontend -n $FULL_NAMESPACE --timeout=300s
+
+# Clean up temporary files
+rm -f k8s/*-temp.yaml
+
+# Get service information
+echo "📊 Deployment Status:"
+kubectl get pods -n $FULL_NAMESPACE
+kubectl get services -n $FULL_NAMESPACE
+kubectl get ingress -n $FULL_NAMESPACE
+
+# Health check
+echo "🏥 Running health checks..."
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=mail-service-backend -n $FULL_NAMESPACE --timeout=300s
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=mail-service-frontend -n $FULL_NAMESPACE --timeout=300s
+
+echo "✅ Deployment completed successfully!"
+echo "🌐 Services are running in namespace: $FULL_NAMESPACE"
+
+# Get ingress URL if available
+INGRESS_URL=$(kubectl get ingress mail-service-ingress -n $FULL_NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "pending")
+if [[ "$INGRESS_URL" != "pending" ]]; then
+    echo "🌍 Application URL: https://$INGRESS_URL"
+else
+    echo "🌍 Ingress URL is pending. Check with: kubectl get ingress -n $FULL_NAMESPACE"
+fi

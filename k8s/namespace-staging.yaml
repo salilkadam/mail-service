@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mail-service-staging
+  labels:
+    name: mail-service-staging
+    app.kubernetes.io/name: mail-service
+    app.kubernetes.io/version: "0.1.0"
+    environment: staging
+

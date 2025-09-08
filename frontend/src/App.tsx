@@ -11,10 +11,10 @@ import {
     Tab,
     Box,
 } from '@mui/material';
-import { Email, History, Health } from '@mui/icons-material';
-import EmailForm from './components/EmailForm';
-import EmailHistory from './components/EmailHistory';
-import HealthStatus from './components/HealthStatus';
+import { Email, History, HealthAndSafety } from '@mui/icons-material';
+import EmailForm from './components/EmailForm.tsx';
+import EmailHistory from './components/EmailHistory.tsx';
+import HealthStatus from './components/HealthStatus.tsx';
 
 // Create theme
 const theme = createTheme({
@@ -83,7 +83,7 @@ function App() {
                     <Tabs value={tabValue} onChange={handleTabChange} aria-label="mail service tabs">
                         <Tab icon={<Email />} label="Send Email" />
                         <Tab icon={<History />} label="Email History" />
-                        <Tab icon={<Health />} label="Health Status" />
+                        <Tab icon={<HealthAndSafety />} label="Health Status" />
                     </Tabs>
                 </Box>
 

@@ -1,0 +1,69 @@
+# ArgoCD Values for Production Environment
+replicaCount: 2
+
+image:
+  repository: docker4zerocool/mail-service
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: mail-service.bionicaisolutions.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: mail-service-tls
+      hosts:
+        - mail-service.bionicaisolutions.com
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - mail-service-backend
+        topologyKey: kubernetes.io/hostname
+
+# Environment-specific configuration
+env:
+  KUBE_MAIL_HOST: kube-mail.kube-system.svc.cluster.local
+  KUBE_MAIL_PORT: "25"
+  FROM_EMAIL: info@bionicaisolutions.com
+  FROM_NAME: Bionic AI Solutions
+  DEBUG: "false"
+  LOG_LEVEL: WARNING
+  CORS_ORIGINS: '["https://mail-service.bionicaisolutions.com"]'

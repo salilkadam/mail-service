@@ -21,8 +21,8 @@ import {
     Pagination,
 } from '@mui/material';
 import { Visibility, Refresh } from '@mui/icons-material';
-import { EmailHistory as EmailHistoryType, EmailStatus } from '../types';
-import { mailApi } from '../services/api';
+import { EmailHistory as EmailHistoryType, EmailStatus } from '../types/index.ts';
+import { mailApi } from '../services/api.ts';
 
 interface EmailHistoryProps {
     refreshTrigger?: number;

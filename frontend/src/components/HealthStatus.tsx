@@ -9,8 +9,8 @@ import {
     CircularProgress,
 } from '@mui/material';
 import { Refresh, CheckCircle, Error, Warning } from '@mui/icons-material';
-import { HealthCheck } from '../types';
-import { mailApi } from '../services/api';
+import { HealthCheck } from '../types/index.ts';
+import { mailApi } from '../services/api.ts';
 
 const HealthStatus: React.FC = () => {
     const [health, setHealth] = useState<HealthCheck | null>(null);

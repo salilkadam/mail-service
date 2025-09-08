@@ -16,8 +16,8 @@ import { Send, Add, Delete } from '@mui/icons-material';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { EmailRequest, EmailStatus } from '../types';
-import { mailApi } from '../services/api';
+import { EmailRequest, EmailStatus } from '../types/index.ts';
+import { mailApi } from '../services/api.ts';
 
 // Validation schema
 const emailSchema = yup.object({

@@ -1,0 +1,76 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mail-service-network-policy
+  namespace: mail-service
+  labels:
+    app.kubernetes.io/name: mail-service
+    app.kubernetes.io/version: "0.1.0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mail-service-backend
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: mail-service
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: mail-service-frontend
+    ports:
+    - protocol: TCP
+      port: 8000
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: TCP
+      port: 25
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mail-service-frontend-network-policy
+  namespace: mail-service
+  labels:
+    app.kubernetes.io/name: mail-service
+    app.kubernetes.io/version: "0.1.0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mail-service-frontend
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from: []
+    ports:
+    - protocol: TCP
+      port: 80
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: mail-service-backend
+    ports:
+    - protocol: TCP
+      port: 8000
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+

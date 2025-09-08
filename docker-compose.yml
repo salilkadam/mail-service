@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   backend:
     build:
@@ -7,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: mail-service-backend
     ports:
-      - "8000:8000"
+      - "8004:8000"
     environment:
       - KUBE_MAIL_HOST=kube-mail.kube-system.svc.cluster.local
       - KUBE_MAIL_PORT=25
@@ -35,9 +33,9 @@ services:
       dockerfile: Dockerfile
     container_name: mail-service-frontend
     ports:
-      - "3000:80"
+      - "3001:80"
     environment:
-      - REACT_APP_API_URL=http://localhost:8000/api/v1
+      - REACT_APP_API_URL=http://localhost:8004/api/v1
     depends_on:
       - backend
     networks:
