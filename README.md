@@ -254,3 +254,4 @@ This project is licensed under the MIT License.
 For support and questions, please contact:
 - Email: info@bionicaisolutions.com
 - Documentation: See `docs/feature/mail-service/` directory
+# Trigger workflow
