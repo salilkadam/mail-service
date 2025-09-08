@@ -68,15 +68,12 @@ spec:
           timeoutSeconds: 3
           failureThreshold: 3
         securityContext:
-          runAsNonRoot: true
-          runAsUser: 100
+          runAsNonRoot: false
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: false
           capabilities:
             drop:
             - ALL
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 100
-        fsGroup: 102
+        runAsNonRoot: false
       restartPolicy: Always
