@@ -10,10 +10,9 @@ on:
       environment:
         description: 'Environment to deploy to'
         required: true
-        default: 'staging'
+        default: 'production'
         type: choice
         options:
-        - staging
         - production
       image_tag:
         description: 'Image tag to deploy'
@@ -42,21 +41,12 @@ jobs:
           ENVIRONMENT="${{ github.event.inputs.environment }}"
           IMAGE_TAG="${{ github.event.inputs.image_tag }}"
         else
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            ENVIRONMENT="production"
-          else
-            ENVIRONMENT="staging"
-          fi
+          ENVIRONMENT="production"
           IMAGE_TAG="${{ github.sha }}"
         fi
         
-        if [ "$ENVIRONMENT" = "production" ]; then
-          NAMESPACE="mail-service-prod"
-          ARGOCD_APP_NAME="mail-service-prod"
-        else
-          NAMESPACE="mail-service-staging"
-          ARGOCD_APP_NAME="mail-service-staging"
-        fi
+        NAMESPACE="mail-service-prod"
+        ARGOCD_APP_NAME="mail-service-production"
         
         echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
         echo "namespace=$NAMESPACE" >> $GITHUB_OUTPUT

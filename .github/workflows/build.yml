@@ -2,7 +2,7 @@ name: Build and Push Docker Images
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main ]
     tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
@@ -86,7 +86,7 @@ jobs:
         platforms: linux/amd64,linux/arm64
 
     - name: Generate deployment artifacts
-      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
         # Create deployment artifacts
         mkdir -p deployment-artifacts
@@ -99,13 +99,8 @@ jobs:
         sed -i "s|image: docker4zerocool/mail-service-frontend:latest|image: docker4zerocool/mail-service-frontend:${{ github.sha }}|g" deployment-artifacts/k8s/frontend-deployment.yaml
         
         # Create environment-specific manifests
-        if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-          ENV="production"
-          NAMESPACE="mail-service-prod"
-        else
-          ENV="staging"
-          NAMESPACE="mail-service-staging"
-        fi
+        ENV="production"
+        NAMESPACE="mail-service-prod"
         
         # Update namespaces
         find deployment-artifacts/k8s -name "*.yaml" -exec sed -i "s|namespace: mail-service|namespace: $NAMESPACE|g" {} \;
@@ -126,7 +121,7 @@ jobs:
         EOF
 
     - name: Upload deployment artifacts
-      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: actions/upload-artifact@v3
       with:
         name: deployment-artifacts-${{ github.sha }}
@@ -134,11 +129,11 @@ jobs:
         retention-days: 30
 
     - name: Create deployment summary
-      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
         echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Environment:** ${{ github.ref == 'refs/heads/main' && 'Production' || 'Staging' }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Environment:** Production" >> $GITHUB_STEP_SUMMARY
         echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
         echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
