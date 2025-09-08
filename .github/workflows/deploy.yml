@@ -1,67 +1,17 @@
-name: Deploy Mail Service to Kubernetes
+name: Build and Push Images
 
 on:
   push:
-    branches: [ main, develop ]
-  pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  REGISTRY: docker.io
+  IMAGE_NAME: docker4zerocool/mail-service
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-
-    - name: Install Poetry
-      uses: snok/install-poetry@v1
-      with:
-        version: latest
-        virtualenvs-create: true
-        virtualenvs-in-project: true
-
-    - name: Load cached venv
-      id: cached-poetry-dependencies
-      uses: actions/cache@v3
-      with:
-        path: backend/.venv
-        key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
-
-    - name: Install dependencies
-      if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-      working-directory: ./backend
-      run: poetry install --no-interaction --no-root
-
-    - name: Run tests
-      working-directory: ./backend
-      run: |
-        poetry run pytest tests/ -v --cov=app --cov-report=xml
-
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./backend/coverage.xml
-        flags: backend
-        name: backend-coverage
-
   build-and-push:
-    needs: test
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
-    
-    permissions:
-      contents: read
-      packages: write
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -69,34 +19,20 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Log in to Container Registry
+    - name: Log in to Docker Hub
       uses: docker/login-action@v3
       with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Extract metadata
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: |
-          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend
-          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend
-        tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=sha,prefix={{branch}}-
-          type=raw,value=latest,enable={{is_default_branch}}
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
 
     - name: Build and push backend image
       uses: docker/build-push-action@v5
       with:
         context: ./backend
-        file: ./backend/Dockerfile
         push: true
-        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ github.sha }}
-        labels: ${{ steps.meta.outputs.labels }}
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:${{ github.sha }}
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:latest
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
@@ -104,118 +40,25 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: ./frontend
-        file: ./frontend/Dockerfile
         push: true
-        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:${{ github.sha }}
-        labels: ${{ steps.meta.outputs.labels }}
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${{ github.sha }}
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:latest
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-  deploy:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
-    
-    environment:
-      name: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
-      url: ${{ steps.deploy.outputs.url }}
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up kubectl
-      uses: azure/setup-kubectl@v3
-      with:
-        version: 'latest'
-
-    - name: Configure kubectl
+    - name: Summary
       run: |
-        echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
-        export KUBECONFIG=kubeconfig
-
-    - name: Update image tags in manifests
-      run: |
-        # Update backend image tag
-        sed -i "s|image: mail-service-backend:latest|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ github.sha }}|g" k8s/backend-deployment.yaml
-        
-        # Update frontend image tag
-        sed -i "s|image: mail-service-frontend:latest|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:${{ github.sha }}|g" k8s/frontend-deployment.yaml
-        
-        # Update namespace based on branch
-        if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-          sed -i "s|namespace: mail-service|namespace: mail-service-prod|g" k8s/*.yaml
-        else
-          sed -i "s|namespace: mail-service|namespace: mail-service-staging|g" k8s/*.yaml
-        fi
-
-    - name: Deploy to Kubernetes
-      id: deploy
-      run: |
-        export KUBECONFIG=kubeconfig
-        
-        # Apply manifests in order
-        kubectl apply -f k8s/namespace.yaml
-        kubectl apply -f k8s/configmap.yaml
-        kubectl apply -f k8s/pvc.yaml
-        kubectl apply -f k8s/backend-deployment.yaml
-        kubectl apply -f k8s/backend-service.yaml
-        kubectl apply -f k8s/frontend-deployment.yaml
-        kubectl apply -f k8s/frontend-service.yaml
-        kubectl apply -f k8s/ingress.yaml
-        
-        # Wait for deployments to be ready
-        kubectl rollout status deployment/mail-service-backend -n ${{ github.ref == 'refs/heads/main' && 'mail-service-prod' || 'mail-service-staging' }} --timeout=300s
-        kubectl rollout status deployment/mail-service-frontend -n ${{ github.ref == 'refs/heads/main' && 'mail-service-prod' || 'mail-service-staging' }} --timeout=300s
-        
-        # Get service URLs
-        if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-          NAMESPACE="mail-service-prod"
-        else
-          NAMESPACE="mail-service-staging"
-        fi
-        
-        # Get ingress URL
-        INGRESS_URL=$(kubectl get ingress mail-service-ingress -n $NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "pending")
-        echo "url=https://$INGRESS_URL" >> $GITHUB_OUTPUT
-
-    - name: Run health checks
-      run: |
-        export KUBECONFIG=kubeconfig
-        
-        if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-          NAMESPACE="mail-service-prod"
-        else
-          NAMESPACE="mail-service-staging"
-        fi
-        
-        # Wait for services to be ready
-        kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=mail-service-backend -n $NAMESPACE --timeout=300s
-        kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=mail-service-frontend -n $NAMESPACE --timeout=300s
-        
-        # Port forward and test health endpoint
-        kubectl port-forward -n $NAMESPACE svc/mail-service-backend 8080:8000 &
-        sleep 10
-        
-        # Test health endpoint
-        curl -f http://localhost:8080/api/v1/health || exit 1
-        
-        echo "✅ Health checks passed!"
-
-  notify:
-    needs: [test, build-and-push, deploy]
-    runs-on: ubuntu-latest
-    if: always()
-    
-    steps:
-    - name: Notify deployment status
-      run: |
-        if [ "${{ needs.deploy.result }}" = "success" ]; then
-          echo "✅ Deployment successful!"
-          echo "Environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}"
-          echo "Commit: ${{ github.sha }}"
-        else
-          echo "❌ Deployment failed!"
-          echo "Check the logs for details."
-        fi
-
+        echo "## 🚀 Images Built and Pushed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Backend Image:**" >> $GITHUB_STEP_SUMMARY
+        echo "- \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:latest\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Frontend Image:**" >> $GITHUB_STEP_SUMMARY
+        echo "- \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:latest\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Next Steps:**" >> $GITHUB_STEP_SUMMARY
+        echo "1. Update ArgoCD application to use the new image tags" >> $GITHUB_STEP_SUMMARY
+        echo "2. Or trigger ArgoCD sync manually" >> $GITHUB_STEP_SUMMARY
