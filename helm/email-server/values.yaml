@@ -1,0 +1,236 @@
+# Default values for email-server
+# This is a YAML-formatted file.
+
+# Global configuration
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: ""
+
+# Image configuration
+image:
+  repository: juanluisbaptiste/postfix
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# Image pull secrets
+imagePullSecrets: []
+
+# Service account configuration
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 100
+  fsGroup: 102
+
+# Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 100
+  capabilities:
+    drop:
+    - ALL
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 25
+  targetPort: 25
+  annotations: {}
+
+# Headless service configuration
+headlessService:
+  enabled: true
+  port: 25
+  targetPort: 25
+
+# Deployment configuration
+deployment:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+
+# Resource configuration
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Autoscaling configuration
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
+
+# Pod annotations
+podAnnotations: {}
+
+# Pod labels
+podLabels: {}
+
+# Environment variables
+env:
+  maildomain: "bionicaisolutions.com"
+  relayhost: "[smtp-relay.gmail.com]:587"
+  ALLOWED_SENDER_DOMAINS: "bionicaisolutions.com,gmail.com"
+  SMTP_SERVER: "smtp-relay.gmail.com"
+  SMTP_PORT: "587"
+  SERVER_HOSTNAME: "mail.bionicaisolutions.com"
+
+# Health checks
+healthCheck:
+  livenessProbe:
+    tcpSocket:
+      port: 25
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readinessProbe:
+    tcpSocket:
+      port: 25
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+# Network policy configuration
+networkPolicy:
+  enabled: true
+  ingress:
+    enabled: true
+    from:
+      - namespaceSelector:
+          matchLabels:
+            email-server.kubernetes.io/smtp-access: "true"
+  egress:
+    enabled: true
+    to: []
+
+# Monitoring configuration
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    path: /metrics
+  prometheusRule:
+    enabled: true
+    rules:
+      - alert: PostfixRelayDown
+        expr: up{job="postfix-relay"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Postfix SMTP relay is down"
+          description: "Postfix SMTP relay has been down for more than 1 minute."
+      - alert: PostfixRelayHighQueue
+        expr: postfix_queue_size > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Postfix queue size is high"
+          description: "Postfix queue size is {{ $value }} messages, which is above the threshold of 100."
+
+# ConfigMap configuration
+configMap:
+  enabled: true
+  data:
+    main.cf: |
+      # Basic settings
+      myhostname = mail.bionicaisolutions.com
+      mydomain = bionicaisolutions.com
+      myorigin = $mydomain
+      inet_interfaces = all
+      inet_protocols = ipv4
+      
+      # Network settings
+      mynetworks = 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+      
+      # Relay settings
+      relayhost = [smtp-relay.gmail.com]:587
+      smtp_use_tls = yes
+      smtp_tls_security_level = may
+      smtp_tls_note_starttls_offer = yes
+      
+      # Queue settings
+      maximal_queue_lifetime = 1d
+      bounce_queue_lifetime = 1d
+      maximal_backoff_time = 4000s
+      minimal_backoff_time = 300s
+      queue_run_delay = 300s
+      
+      # Security settings
+      smtpd_banner = $myhostname ESMTP
+      disable_vrfy_command = yes
+      smtpd_helo_required = yes
+      smtpd_helo_restrictions = permit_mynetworks, reject_invalid_helo_hostname, reject_non_fqdn_helo_hostname, permit
+      smtpd_sender_restrictions = permit_mynetworks, reject_non_fqdn_sender, reject_unknown_sender_domain, permit
+      smtpd_recipient_restrictions = permit_mynetworks, reject_unauth_destination, permit
+      
+      # Logging
+      mail_log_file = /var/log/postfix/mail.log
+      logfile_path = /var/log/postfix
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: mail.bionicaisolutions.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# Persistence configuration
+persistence:
+  enabled: false
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 1Gi
+
+# RBAC configuration
+rbac:
+  create: true
+  rules: []
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Horizontal Pod Autoscaler
+hpa:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80

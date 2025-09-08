@@ -17,7 +17,7 @@ router = APIRouter()
 
 @router.post("/send", response_model=EmailResponse)
 async def send_email(email_request: EmailRequest):
-    """Send an email through kube-mail."""
+    """Send an email through Postfix SMTP relay."""
     try:
         # Validate the request
         validation_result = validate_email_request(email_request.dict())
@@ -94,12 +94,12 @@ async def get_email_by_id(message_id: str):
 async def health_check():
     """Health check endpoint."""
     try:
-        kube_mail_connection = await mail_service.check_kube_mail_connection()
+        postfix_connection = await mail_service.check_postfix_connection()
         
         return HealthCheck(
-            status="healthy" if kube_mail_connection else "degraded",
+            status="healthy" if postfix_connection else "degraded",
             version="0.1.0",
-            kube_mail_connection=kube_mail_connection
+            kube_mail_connection=postfix_connection
         )
         
     except Exception as e:

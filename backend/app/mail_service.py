@@ -1,4 +1,4 @@
-"""Mail service for sending emails via kube-mail."""
+"""Mail service for sending emails via Postfix SMTP relay."""
 
 import asyncio
 import logging
@@ -19,17 +19,17 @@ logger = logging.getLogger(__name__)
 
 
 class MailService:
-    """Service for sending emails through kube-mail."""
+    """Service for sending emails through Postfix SMTP relay."""
     
     def __init__(self):
-        self.host = settings.kube_mail_host
-        self.port = settings.kube_mail_port
+        self.host = settings.postfix_host
+        self.port = settings.postfix_port
         self.from_email = settings.from_email
         self.from_name = settings.from_name
         self.email_history: List[EmailHistory] = []
     
     async def send_email(self, email_request: EmailRequest) -> EmailResponse:
-        """Send an email through kube-mail."""
+        """Send an email through Postfix SMTP relay."""
         message_id = str(uuid.uuid4())
         
         try:
@@ -49,8 +49,8 @@ class MailService:
             # Create email message
             message = await self._create_email_message(email_request, message_id)
             
-            # Send email through kube-mail
-            await self._send_via_kube_mail(message, email_request.to)
+            # Send email through Postfix SMTP relay
+            await self._send_via_postfix(message, email_request.to)
             
             # Update status
             email_history.status = EmailStatus.SENT
@@ -128,10 +128,10 @@ class MailService:
             except Exception as e:
                 logger.error(f"Error adding attachment {file_path}: {str(e)}")
     
-    async def _send_via_kube_mail(self, message: MIMEMultipart, recipients: List[str]):
-        """Send email through kube-mail SMTP server."""
+    async def _send_via_postfix(self, message: MIMEMultipart, recipients: List[str]):
+        """Send email through Postfix SMTP relay."""
         try:
-            # Connect to kube-mail SMTP server
+            # Connect to Postfix SMTP relay
             smtp = aiosmtplib.SMTP(hostname=self.host, port=self.port)
             await smtp.connect()
             
@@ -139,10 +139,10 @@ class MailService:
             await smtp.send_message(message)
             await smtp.quit()
             
-            logger.info(f"Email sent to {len(recipients)} recipients via kube-mail")
+            logger.info(f"Email sent to {len(recipients)} recipients via Postfix relay")
             
         except Exception as e:
-            logger.error(f"Failed to send email via kube-mail: {str(e)}")
+            logger.error(f"Failed to send email via Postfix relay: {str(e)}")
             raise
     
     async def get_email_history(self, limit: int = 50) -> List[EmailHistory]:
@@ -156,15 +156,15 @@ class MailService:
                 return email
         return None
     
-    async def check_kube_mail_connection(self) -> bool:
-        """Check if kube-mail service is reachable."""
+    async def check_postfix_connection(self) -> bool:
+        """Check if Postfix SMTP relay is reachable."""
         try:
             smtp = aiosmtplib.SMTP(hostname=self.host, port=self.port)
             await smtp.connect()
             await smtp.quit()
             return True
         except Exception as e:
-            logger.error(f"kube-mail connection check failed: {str(e)}")
+            logger.error(f"Postfix relay connection check failed: {str(e)}")
             return False
 
 

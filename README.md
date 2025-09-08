@@ -1,26 +1,41 @@
 # Mail Service
 
-A comprehensive mail service application for sending emails via kube-mail pod with sender address `info@bionicaisolutions.com`.
+A comprehensive mail service application for sending emails via Postfix SMTP relay with sender address `info@bionicaisolutions.com`.
 
 ## Features
 
 - **Backend API**: FastAPI-based REST API for email operations
 - **Frontend UI**: React-based web interface for composing and sending emails
-- **kube-mail Integration**: Seamless integration with Kubernetes kube-mail service
+- **Postfix SMTP Relay**: Production-ready SMTP relay service for reliable email delivery
+- **Gmail Workspace Integration**: Seamless integration with Gmail Workspace SMTP relay
 - **Email History**: Track and view email sending history
 - **Health Monitoring**: Real-time health checks and service status
 - **Docker Support**: Containerized deployment with Docker and Docker Compose
 - **Kubernetes Ready**: Complete Kubernetes manifests for production deployment
+- **Helm Charts**: Easy deployment and management with Helm
+- **Monitoring**: Prometheus metrics and alerting support
 
 ## Architecture
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Frontend      │    │    Backend      │    │   kube-mail     │
-│   (React)       │◄──►│   (FastAPI)     │◄──►│   (Kubernetes)  │
-│   Port: 3000    │    │   Port: 8000    │    │   Port: 25      │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Frontend      │    │    Backend      │    │  Postfix SMTP   │    │  Gmail Workspace│
+│   (React)       │◄──►│   (FastAPI)     │◄──►│     Relay       │◄──►│  SMTP Relay     │
+│   Port: 3000    │    │   Port: 8000    │    │   Port: 25      │    │   Port: 587     │
+└─────────────────┘    └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
+
+## Email Server Infrastructure
+
+This project includes a complete email server infrastructure with:
+
+- **Postfix SMTP Relay**: High-availability SMTP relay service
+- **Network Policies**: Secure network access control
+- **Monitoring**: Prometheus metrics and alerting
+- **Helm Charts**: Easy deployment and management
+- **Documentation**: Comprehensive setup and usage guides
+
+See [README-EMAIL-SERVER.md](README-EMAIL-SERVER.md) for detailed email server documentation.
 
 ## Quick Start
 
@@ -50,26 +65,26 @@ A comprehensive mail service application for sending emails via kube-mail pod wi
 
 ### Kubernetes Deployment
 
-1. **Install kube-mail (if not already installed):**
+1. **Deploy the email server infrastructure:**
    ```bash
-   helm repo add mittwald https://helm.mittwald.de
-   helm repo update
-   helm install kube-mail mittwald/kube-mail --namespace kube-system
+   # Using Helm (recommended)
+   helm install email-server ./helm/email-server \
+     --namespace email-server-prod \
+     --create-namespace
+   
+   # Or using Kustomize
+   kubectl apply -k k8s/email-server/
    ```
 
-2. **Configure SMTP server:**
-   ```bash
-   kubectl apply -f k8s/kube-mail-smtp-server.yaml
-   ```
-
-3. **Deploy the mail service:**
+2. **Deploy the mail service:**
    ```bash
    kubectl apply -f k8s/
    ```
 
-4. **Configure email policy:**
+3. **Configure namespace access:**
    ```bash
-   kubectl apply -f k8s/kube-mail-email-policy.yaml
+   # Add label to allow SMTP access
+   kubectl label namespace mail-service-prod email-server.kubernetes.io/smtp-access=true
    ```
 
 ## Configuration
@@ -78,25 +93,27 @@ A comprehensive mail service application for sending emails via kube-mail pod wi
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `KUBE_MAIL_HOST` | kube-mail service hostname | `kube-mail.kube-system.svc.cluster.local` |
-| `KUBE_MAIL_PORT` | kube-mail service port | `25` |
+| `POSTFIX_HOST` | Postfix SMTP relay hostname | `postfix-relay.email-server-prod.svc.cluster.local` |
+| `POSTFIX_PORT` | Postfix SMTP relay port | `25` |
 | `FROM_EMAIL` | Default sender email | `info@bionicaisolutions.com` |
 | `FROM_NAME` | Default sender name | `Bionic AI Solutions` |
 | `DEBUG` | Enable debug mode | `false` |
 | `LOG_LEVEL` | Logging level | `INFO` |
 
-### SMTP Server Configuration
+### Email Server Configuration
 
-Update `k8s/kube-mail-smtp-server.yaml` with your actual SMTP server details:
+The email server is configured to use Gmail Workspace SMTP relay:
 
-```yaml
-spec:
-  server: your-smtp-server.com
-  port: 587
-  tls: true
-  authType: PLAIN
-  # Add authentication credentials via Kubernetes secrets
-```
+- **Relay Host**: `smtp-relay.gmail.com:587`
+- **Authentication**: IP-based (no credentials required)
+- **TLS**: Enabled for secure communication
+- **Allowed Domains**: `bionicaisolutions.com`, `gmail.com`
+
+### Gmail Workspace Setup
+
+1. **IP Whitelisting**: Add your server's public IP to Gmail Workspace SMTP Relay settings
+2. **Domain Configuration**: Ensure `bionicaisolutions.com` is verified in Gmail Workspace
+3. **SMTP Relay**: Configure SMTP relay service in Google Admin Console
 
 ## API Endpoints
 
@@ -207,10 +224,10 @@ The application includes comprehensive health monitoring:
 
 ### Common Issues
 
-1. **kube-mail Connection Failed**
-   - Verify kube-mail is installed and running
-   - Check SMTP server configuration
-   - Ensure network connectivity
+1. **Postfix SMTP Relay Connection Failed**
+   - Verify email server is deployed and running
+   - Check namespace labels for SMTP access
+   - Ensure network policies are configured correctly
 
 2. **Frontend Cannot Connect to Backend**
    - Verify backend service is running
@@ -218,9 +235,14 @@ The application includes comprehensive health monitoring:
    - Ensure correct API URL in frontend
 
 3. **Email Sending Fails**
-   - Check SMTP server credentials
-   - Verify email policy configuration
-   - Review kube-mail logs
+   - Check Gmail Workspace SMTP relay configuration
+   - Verify IP address is whitelisted
+   - Review Postfix logs for error messages
+
+4. **Email Bounces**
+   - Check Gmail Workspace domain configuration
+   - Verify sender domain is properly configured
+   - Review Postfix logs for specific error codes
 
 ### Logs
 
@@ -232,8 +254,11 @@ docker-compose logs backend
 docker-compose logs frontend
 
 # Kubernetes logs
-kubectl logs -n mail-service deployment/mail-service-backend
-kubectl logs -n mail-service deployment/mail-service-frontend
+kubectl logs -n mail-service-prod deployment/mail-service-backend
+kubectl logs -n mail-service-prod deployment/mail-service-frontend
+
+# Email server logs
+kubectl logs -n email-server-prod deployment/postfix-relay
 ```
 
 ## Contributing

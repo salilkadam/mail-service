@@ -8,8 +8,8 @@ class Settings(BaseSettings):
     """Application settings."""
     
     # Mail Configuration
-    kube_mail_host: str = "kube-mail.kube-system.svc.cluster.local"
-    kube_mail_port: int = 25
+    postfix_host: str = "postfix-relay.mail-service-prod.svc.cluster.local"
+    postfix_port: int = 25
     from_email: str = "info@bionicaisolutions.com"
     from_name: str = "Bionic AI Solutions"
     
