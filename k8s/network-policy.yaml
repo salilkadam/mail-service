@@ -2,7 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: mail-service-network-policy
-  namespace: mail-service
+  namespace: mail-service-prod
   labels:
     app.kubernetes.io/name: mail-service
     app.kubernetes.io/version: "0.1.0"
@@ -43,7 +43,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: mail-service-frontend-network-policy
-  namespace: mail-service
+  namespace: mail-service-prod
   labels:
     app.kubernetes.io/name: mail-service
     app.kubernetes.io/version: "0.1.0"

@@ -8,7 +8,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/Bionic-AI-Solutions/mail-service
+    repoURL: https://github.com/salilkadam/mail-service
     targetRevision: main
     path: k8s
   destination:
