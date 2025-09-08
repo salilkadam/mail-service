@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: prometheus
+  namespace: monitoring
+
+resources:
+  - namespace.yaml
+  - prometheus-operator.yaml
+  - prometheus.yaml
+  - grafana.yaml
+
+commonLabels:
+  app.kubernetes.io/name: prometheus
+  app.kubernetes.io/version: 2.45.0
+  app.kubernetes.io/component: monitoring
+  app.kubernetes.io/part-of: infrastructure
