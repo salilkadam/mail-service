@@ -1,6 +1,6 @@
 name: Build and Push Images
 
-# Updated workflow with CLI-style Docker login
+# Updated workflow with working Docker Hub credentials
 on:
   push:
     branches: [ main ]
