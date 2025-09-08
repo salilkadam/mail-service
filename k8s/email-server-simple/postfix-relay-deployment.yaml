@@ -28,7 +28,7 @@ spec:
     spec:
       containers:
       - name: postfix
-        image: catatnight/postfix:latest
+        image: juanluisbaptiste/postfix:latest
         ports:
         - containerPort: 25
           name: smtp
@@ -46,6 +46,12 @@ spec:
           value: "587"
         - name: SERVER_HOSTNAME
           value: "mail.bionicaisolutions.com"
+        - name: ALLOW_EMPTY_SENDER_DOMAINS
+          value: "true"
+        - name: POSTFIX_MYHOSTNAME
+          value: "mail.bionicaisolutions.com"
+        - name: POSTFIX_MYDOMAIN
+          value: "bionicaisolutions.com"
         resources:
           requests:
             memory: "128Mi"
