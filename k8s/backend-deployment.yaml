@@ -27,16 +27,16 @@ spec:
         - containerPort: 8000
           name: http
         env:
-        - name: KUBE_MAIL_HOST
+        - name: POSTFIX_HOST
           valueFrom:
             configMapKeyRef:
               name: mail-service-config
-              key: KUBE_MAIL_HOST
-        - name: KUBE_MAIL_PORT
+              key: POSTFIX_HOST
+        - name: POSTFIX_PORT
           valueFrom:
             configMapKeyRef:
               name: mail-service-config
-              key: KUBE_MAIL_PORT
+              key: POSTFIX_PORT
         - name: FROM_EMAIL
           valueFrom:
             configMapKeyRef:
