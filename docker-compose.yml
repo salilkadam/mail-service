@@ -16,7 +16,6 @@ services:
       - CORS_ORIGINS=["http://localhost:3000", "http://localhost:8080"]
     volumes:
       - ./backend:/app
-      - /opt/ai-models:/opt/ai-models:ro
     networks:
       - mail-network
     restart: unless-stopped
@@ -52,6 +51,3 @@ networks:
   mail-network:
     driver: bridge
 
-volumes:
-  ai-models:
-    external: true

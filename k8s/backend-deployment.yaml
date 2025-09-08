@@ -95,12 +95,4 @@ spec:
           periodSeconds: 5
           timeoutSeconds: 3
           failureThreshold: 3
-        volumeMounts:
-        - name: ai-models
-          mountPath: /opt/ai-models
-          readOnly: true
-      volumes:
-      - name: ai-models
-        persistentVolumeClaim:
-          claimName: ai-models-pvc
       restartPolicy: Always
