@@ -32,6 +32,13 @@ spec:
     ports:
     - protocol: TCP
       port: 25
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: postfix-relay
+    ports:
+    - protocol: TCP
+      port: 25
   - to: []
     ports:
     - protocol: TCP
