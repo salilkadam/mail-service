@@ -11,8 +11,8 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/Bionic-AI-Solutions/mail-service
-    targetRevision: main
+    repoURL: https://github.com/salilkadam/mail-service
+    targetRevision: feature/mail-service
     path: k8s
   destination:
     server: https://kubernetes.default.svc

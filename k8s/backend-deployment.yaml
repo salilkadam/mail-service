@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mail-service-backend
-  namespace: mail-service
+  namespace: mail-service-prod
   labels:
     app.kubernetes.io/name: mail-service-backend
     app.kubernetes.io/version: "0.1.0"
@@ -27,16 +27,16 @@ spec:
         - containerPort: 8000
           name: http
         env:
-        - name: KUBE_MAIL_HOST
+        - name: SMTP_HOST
           valueFrom:
             configMapKeyRef:
               name: mail-service-config
-              key: KUBE_MAIL_HOST
-        - name: KUBE_MAIL_PORT
+              key: SMTP_HOST
+        - name: SMTP_PORT
           valueFrom:
             configMapKeyRef:
               name: mail-service-config
-              key: KUBE_MAIL_PORT
+              key: SMTP_PORT
         - name: FROM_EMAIL
           valueFrom:
             configMapKeyRef:
@@ -95,12 +95,4 @@ spec:
           periodSeconds: 5
           timeoutSeconds: 3
           failureThreshold: 3
-        volumeMounts:
-        - name: ai-models
-          mountPath: /opt/ai-models
-          readOnly: true
-      volumes:
-      - name: ai-models
-        persistentVolumeClaim:
-          claimName: ai-models-pvc
       restartPolicy: Always
