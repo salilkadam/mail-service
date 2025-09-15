@@ -55,8 +55,15 @@ class MailService:
             # Create email message
             message = await self._create_email_message(email_request, message_id)
 
+            # Collect all recipients (to, cc, bcc)
+            all_recipients = email_request.to[:]
+            if email_request.cc:
+                all_recipients.extend(email_request.cc)
+            if email_request.bcc:
+                all_recipients.extend(email_request.bcc)
+
             # Send email through SMTP
-            await self._send_via_smtp(message, email_request.to)
+            await self._send_via_smtp(message, all_recipients)
 
             # Update status
             email_history.status = EmailStatus.SENT
@@ -154,7 +161,7 @@ class MailService:
             if self.username and self.password:
                 await smtp.login(self.username, self.password)
 
-            # Send email
+            # Send email to all recipients (to, cc, bcc)
             await smtp.send_message(message)
             await smtp.quit()
 
