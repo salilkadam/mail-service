@@ -88,8 +88,8 @@ jobs:
         rm argocd-linux-amd64
         
         # Login to ArgoCD
-        argocd login ${{ secrets.ARGOCD_SERVER }} --auth-token ${{ secrets.ARGOCD_PASSWORD }} --insecure
+        argocd login ${{ secrets.ARGOCD_SERVER }} --auth-token ${{ secrets.ARGOCD_PASSWORD }} --insecure --grpc-web
         
         # Sync the application
-        argocd app sync mail-service-production --force
-        argocd app wait mail-service-production --health --timeout 300
+        argocd app sync mail-service-production --force --grpc-web
+        argocd app wait mail-service-production --health --timeout 300 --grpc-web
