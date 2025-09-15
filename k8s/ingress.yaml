@@ -21,7 +21,7 @@ spec:
   - host: mail.bionicaisolutions.com
     http:
       paths:
-      - path: /api
+      - path: /api/v1
         pathType: Prefix
         backend:
           service:

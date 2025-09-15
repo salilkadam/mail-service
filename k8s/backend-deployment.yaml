@@ -37,6 +37,11 @@ spec:
             configMapKeyRef:
               name: mail-service-config
               key: SMTP_PORT
+        - name: USE_TLS
+          valueFrom:
+            configMapKeyRef:
+              name: mail-service-config
+              key: USE_TLS
         - name: FROM_EMAIL
           valueFrom:
             configMapKeyRef:

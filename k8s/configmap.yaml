@@ -9,7 +9,7 @@ metadata:
 data:
   SMTP_HOST: "postfix-relay.mail-service-prod.svc.cluster.local"
   SMTP_PORT: "25"
-  USE_TLS: "false"
+  USE_TLS: "False"
   FROM_EMAIL: "info@bionicaisolutions.com"
   FROM_NAME: "Bionic AI Solutions"
   APP_NAME: "Mail Service"
