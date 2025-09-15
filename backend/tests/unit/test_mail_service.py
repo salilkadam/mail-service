@@ -80,11 +80,7 @@ async def test_send_email_success(mail_service, valid_email_request):
         
         # Verify SMTP calls
         mock_smtp_instance.connect.assert_called_once()
-        mock_smtp_instance.starttls.assert_called_once()
-        mock_smtp_instance.login.assert_called_once_with(
-            settings.smtp_username,
-            settings.smtp_password
-        )
+        # Note: starttls and login are not called for postfix relay
         mock_smtp_instance.send_message.assert_called_once()
         mock_smtp_instance.quit.assert_called_once()
         

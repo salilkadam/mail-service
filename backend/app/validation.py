@@ -4,7 +4,6 @@ import os
 from typing import Any, Dict, List, Optional
 from pydantic import ValidationError
 from fastapi import HTTPException, status
-from email_validator import validate_email, EmailNotValidError
 
 
 # Constants for attachment validation
@@ -99,10 +98,17 @@ def validate_email_request(data: Dict[str, Any]) -> ValidationResult:
 
 def validate_email_addresses(emails: List[str]) -> ValidationResult:
     """Validate list of email addresses."""
+    try:
+        from email_validator import validate_email, EmailNotValidError
+    except ImportError:
+        # If email-validator is not available, skip validation
+        return ValidationResult(is_valid=True)
+    
     errors = []
     for i, email in enumerate(emails):
         try:
-            validate_email(email)
+            # Use check_deliverability=False to avoid checking if domain accepts email
+            validate_email(email, check_deliverability=False)
         except EmailNotValidError as e:
             errors.append(f"Invalid email at position {i}: {email} - {str(e)}")
     

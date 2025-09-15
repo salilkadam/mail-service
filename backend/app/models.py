@@ -1,6 +1,6 @@
 """Pydantic models for the mail service."""
 
-from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import List, Optional
 from datetime import datetime
 from enum import Enum
@@ -25,21 +25,24 @@ class EmailRequest(BaseModel):
     is_html: bool = Field(False, description="Whether the body is HTML content")
     attachments: Optional[List[str]] = Field(None, description="List of attachment file paths")
     
-    @validator('to')
+    @field_validator('to')
+    @classmethod
     def validate_recipients(cls, v):
         """Validate that at least one recipient is provided."""
         if not v or len(v) == 0:
             raise ValueError('At least one recipient must be provided')
         return v
     
-    @validator('subject')
+    @field_validator('subject')
+    @classmethod
     def validate_subject(cls, v):
         """Validate subject is not empty after stripping."""
         if not v.strip():
             raise ValueError('Subject cannot be empty')
         return v.strip()
     
-    @validator('body')
+    @field_validator('body')
+    @classmethod
     def validate_body(cls, v):
         """Validate body is not empty after stripping."""
         if not v.strip():
