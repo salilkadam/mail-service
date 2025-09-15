@@ -82,20 +82,17 @@ jobs:
     
     - name: Trigger ArgoCD Sync
       run: |
-        # Install ArgoCD CLI
-        curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-        sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
-        rm argocd-linux-amd64
+        # Use ArgoCD REST API to trigger sync
+        ARGOCD_SERVER="${{ secrets.ARGOCD_SERVER }}"
+        ARGOCD_TOKEN="${{ secrets.ARGOCD_PASSWORD }}"
         
-        # Debug: Show the server URL (without revealing the token)
-        echo "ArgoCD Server: ${{ secrets.ARGOCD_SERVER }}"
+        echo "Triggering ArgoCD sync via REST API..."
         
-        # Login to ArgoCD with explicit URL format
-        argocd login "${{ secrets.ARGOCD_SERVER }}" --auth-token "${{ secrets.ARGOCD_PASSWORD }}" --insecure --grpc-web
+        # Trigger sync using ArgoCD REST API
+        curl -X POST \
+          -H "Authorization: Bearer $ARGOCD_TOKEN" \
+          -H "Content-Type: application/json" \
+          "$ARGOCD_SERVER/api/v1/applications/mail-service-production/sync" \
+          -d '{"prune": true, "dryRun": false, "strategy": {"hook": {"force": true}}}'
         
-        # List applications to verify connection
-        argocd app list --grpc-web
-        
-        # Sync the application
-        argocd app sync mail-service-production --force --grpc-web
-        argocd app wait mail-service-production --health --timeout 300 --grpc-web
+        echo "ArgoCD sync triggered successfully!"
