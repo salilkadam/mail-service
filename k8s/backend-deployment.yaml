@@ -27,16 +27,16 @@ spec:
         - containerPort: 8000
           name: http
         env:
-        - name: POSTFIX_HOST
+        - name: SMTP_HOST
           valueFrom:
             configMapKeyRef:
               name: mail-service-config
-              key: POSTFIX_HOST
-        - name: POSTFIX_PORT
+              key: SMTP_HOST
+        - name: SMTP_PORT
           valueFrom:
             configMapKeyRef:
               name: mail-service-config
-              key: POSTFIX_PORT
+              key: SMTP_PORT
         - name: FROM_EMAIL
           valueFrom:
             configMapKeyRef:

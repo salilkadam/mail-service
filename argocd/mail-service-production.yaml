@@ -5,11 +5,14 @@ metadata:
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
+  labels:
+    environment: production
+    app: mail-service
 spec:
   project: default
   source:
     repoURL: https://github.com/salilkadam/mail-service
-    targetRevision: main
+    targetRevision: feature/mail-service
     path: k8s
   destination:
     server: https://kubernetes.default.svc
@@ -20,8 +23,7 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-      - PrunePropagationPolicy=foreground
-      - PruneLast=true
+      - ServerSideApply=true
     retry:
       limit: 5
       backoff:

@@ -8,12 +8,17 @@ metadata:
     app.kubernetes.io/version: "0.1.0"
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/use-regex: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
 spec:
   ingressClassName: nginx
+  tls:
+  - hosts:
+    - mail.bionicaisolutions.com
+    secretName: mail-service-tls
   rules:
-  - host: mail-service.local
+  - host: mail.bionicaisolutions.com
     http:
       paths:
       - path: /api
