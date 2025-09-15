@@ -22,7 +22,7 @@ spec:
       containers:
       - name: backend
         image: docker4zerocool/mail-service-backend:main
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 8000
           name: http
