@@ -80,32 +80,28 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
     
-    - name: Set up kubectl
-      uses: azure/setup-kubectl@v3
-      with:
-        version: 'v1.28.0'
-    
-    - name: Configure kubectl
-      run: |
-        echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
-        export KUBECONFIG=kubeconfig
-    
     - name: Update image tag in deployment
       run: |
         sed -i "s|image: docker4zerocool/mail-service-backend:.*|image: docker4zerocool/mail-service-backend:main-$(git rev-parse --short HEAD)|g" k8s/backend-deployment.yaml
     
-    - name: Deploy to Kubernetes
+    - name: Commit updated deployment
       run: |
-        kubectl apply -f k8s/namespace-production.yaml
-        kubectl apply -f k8s/configmap.yaml
-        kubectl apply -f k8s/backend-deployment.yaml
-        kubectl apply -f k8s/backend-service.yaml
-        kubectl apply -f k8s/ingress.yaml
-        kubectl apply -f k8s/postfix-deployment.yaml
-        kubectl apply -f k8s/postfix-service.yaml
-        kubectl apply -f k8s/network-policy.yaml
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add k8s/backend-deployment.yaml
+        git commit -m "chore: Update image tag to main-$(git rev-parse --short HEAD)" || exit 0
+        git push origin main
     
-    - name: Wait for deployment
+    - name: Trigger ArgoCD Sync
       run: |
-        kubectl rollout status deployment/mail-service-backend -n mail-service-prod --timeout=300s
-        kubectl rollout status deployment/postfix-relay -n mail-service-prod --timeout=300s
+        # Install ArgoCD CLI
+        curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+        sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+        rm argocd-linux-amd64
+        
+        # Login to ArgoCD
+        argocd login ${{ secrets.ARGOCD_SERVER }} --auth-token ${{ secrets.ARGOCD_TOKEN }} --insecure
+        
+        # Sync the application
+        argocd app sync mail-service-production --force
+        argocd app wait mail-service-production --health --timeout 300

@@ -12,7 +12,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/salilkadam/mail-service
-    targetRevision: feature/mail-service
+    targetRevision: main
     path: k8s
   destination:
     server: https://kubernetes.default.svc
