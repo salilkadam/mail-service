@@ -80,18 +80,6 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
     
-    - name: Update image tag in deployment
-      run: |
-        sed -i "s|image: docker4zerocool/mail-service-backend:.*|image: docker4zerocool/mail-service-backend:main-$(git rev-parse --short HEAD)|g" k8s/backend-deployment.yaml
-    
-    - name: Commit updated deployment
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add k8s/backend-deployment.yaml
-        git commit -m "chore: Update image tag to main-$(git rev-parse --short HEAD)" || exit 0
-        git push https://${{ secrets.G_TOKEN }}@github.com/salilkadam/mail-service.git main
-    
     - name: Trigger ArgoCD Sync
       run: |
         # Install ArgoCD CLI
