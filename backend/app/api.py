@@ -7,8 +7,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 
-from .auth import (Token, User, create_access_token, get_current_active_user,
-                   get_password_hash, verify_password)
+from .auth import (
+    Token,
+    User,
+    create_access_token,
+    get_current_active_user,
+    get_password_hash,
+    verify_password,
+)
 from .mail_service import mail_service
 from .models import EmailHistory, EmailRequest, EmailResponse, HealthCheck
 from .validation import ValidationResult, validate_email_request
