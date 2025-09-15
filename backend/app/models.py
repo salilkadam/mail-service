@@ -1,13 +1,15 @@
 """Pydantic models for the mail service."""
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
-from typing import List, Optional
 from datetime import datetime
 from enum import Enum
+from typing import List, Optional
+
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class EmailStatus(str, Enum):
     """Email status enumeration."""
+
     PENDING = "pending"
     SENT = "sent"
     FAILED = "failed"
@@ -16,54 +18,62 @@ class EmailStatus(str, Enum):
 
 class EmailRequest(BaseModel):
     """Request model for sending an email."""
-    
+
     to: List[EmailStr] = Field(..., description="List of recipient email addresses")
     cc: Optional[List[EmailStr]] = Field(None, description="List of CC email addresses")
-    bcc: Optional[List[EmailStr]] = Field(None, description="List of BCC email addresses")
+    bcc: Optional[List[EmailStr]] = Field(
+        None, description="List of BCC email addresses"
+    )
     subject: str = Field(..., min_length=1, max_length=200, description="Email subject")
     body: str = Field(..., min_length=1, description="Email body content")
     is_html: bool = Field(False, description="Whether the body is HTML content")
-    attachments: Optional[List[str]] = Field(None, description="List of attachment file paths")
-    
-    @field_validator('to')
+    attachments: Optional[List[str]] = Field(
+        None, description="List of attachment file paths"
+    )
+
+    @field_validator("to")
     @classmethod
     def validate_recipients(cls, v):
         """Validate that at least one recipient is provided."""
         if not v or len(v) == 0:
-            raise ValueError('At least one recipient must be provided')
+            raise ValueError("At least one recipient must be provided")
         return v
-    
-    @field_validator('subject')
+
+    @field_validator("subject")
     @classmethod
     def validate_subject(cls, v):
         """Validate subject is not empty after stripping."""
         if not v.strip():
-            raise ValueError('Subject cannot be empty')
+            raise ValueError("Subject cannot be empty")
         return v.strip()
-    
-    @field_validator('body')
+
+    @field_validator("body")
     @classmethod
     def validate_body(cls, v):
         """Validate body is not empty after stripping."""
         if not v.strip():
-            raise ValueError('Body cannot be empty')
+            raise ValueError("Body cannot be empty")
         return v.strip()
 
 
 class EmailResponse(BaseModel):
     """Response model for email operations."""
-    
+
     message_id: str = Field(..., description="Unique message identifier")
     status: EmailStatus = Field(..., description="Current email status")
     to: List[str] = Field(..., description="List of recipient email addresses")
     subject: str = Field(..., description="Email subject")
-    sent_at: Optional[datetime] = Field(None, description="Timestamp when email was sent")
-    error_message: Optional[str] = Field(None, description="Error message if sending failed")
+    sent_at: Optional[datetime] = Field(
+        None, description="Timestamp when email was sent"
+    )
+    error_message: Optional[str] = Field(
+        None, description="Error message if sending failed"
+    )
 
 
 class EmailHistory(BaseModel):
     """Model for email history entry."""
-    
+
     message_id: str
     status: EmailStatus
     to: List[str]
@@ -79,7 +89,7 @@ class EmailHistory(BaseModel):
 
 class HealthCheck(BaseModel):
     """Health check response model."""
-    
+
     status: str = Field(..., description="Service status")
     version: str = Field(..., description="Application version")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
