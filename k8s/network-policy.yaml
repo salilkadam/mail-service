@@ -18,6 +18,9 @@ spec:
     - namespaceSelector:
         matchLabels:
           name: mail-service
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
     - podSelector:
         matchLabels:
           app.kubernetes.io/name: mail-service-frontend
