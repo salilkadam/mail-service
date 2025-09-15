@@ -30,7 +30,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     """Get access token for authentication."""
     # In a real application, validate against a database
     # For this example, we'll use a mock user
-    if form_data.username != "test" or form_data.password != "test123":
+    if form_data.username != "fedfinan@gmail.com" or form_data.password != "fedfina5@135PD":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
