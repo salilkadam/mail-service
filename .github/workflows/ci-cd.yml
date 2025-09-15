@@ -100,7 +100,7 @@ jobs:
         rm argocd-linux-amd64
         
         # Login to ArgoCD
-        argocd login ${{ secrets.ARGOCD_SERVER }} --auth-token ${{ secrets.ARGOCD_TOKEN }} --insecure
+        argocd login ${{ secrets.ARGOCD_SERVER }} --auth-token ${{ secrets.ARGOCD_PASSWORD }} --insecure
         
         # Sync the application
         argocd app sync mail-service-production --force
