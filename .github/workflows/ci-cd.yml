@@ -87,8 +87,14 @@ jobs:
         sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
         rm argocd-linux-amd64
         
-        # Login to ArgoCD
-        argocd login ${{ secrets.ARGOCD_SERVER }} --auth-token ${{ secrets.ARGOCD_PASSWORD }} --insecure --grpc-web
+        # Debug: Show the server URL (without revealing the token)
+        echo "ArgoCD Server: ${{ secrets.ARGOCD_SERVER }}"
+        
+        # Login to ArgoCD with explicit URL format
+        argocd login "${{ secrets.ARGOCD_SERVER }}" --auth-token "${{ secrets.ARGOCD_PASSWORD }}" --insecure --grpc-web
+        
+        # List applications to verify connection
+        argocd app list --grpc-web
         
         # Sync the application
         argocd app sync mail-service-production --force --grpc-web
