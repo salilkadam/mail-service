@@ -24,11 +24,15 @@ spec:
           name: smtp
         env:
         - name: SERVER_HOSTNAME
-          value: postfix-relay.mail-service-prod.svc.cluster.local
-        - name: SMTP_SERVER
-          value: smtp.gmail.com
-        - name: SMTP_PORT
-          value: "587"
+          value: bionicaisolutions.com
+        - name: SMTP_RELAYHOST
+          value: smtp-relay.gmail.com:25
+        - name: SMTP_NETWORKS
+          value: "0.0.0.0/0"
+        - name: SMTP_MESSAGE_SIZE_LIMIT
+          value: "25000000"  # 25MB as per Google's limit
+        - name: SMTP_DESTINATION_RATE_DELAY
+          value: "1s"  # Rate limiting to avoid hitting Google's limits
         resources:
           requests:
             cpu: 100m
@@ -36,3 +40,11 @@ spec:
           limits:
             cpu: 200m
             memory: 256Mi
+        volumeMounts:
+        - name: postfix-config
+          mountPath: /etc/postfix/main.cf
+          subPath: main.cf
+      volumes:
+      - name: postfix-config
+        configMap:
+          name: postfix-config

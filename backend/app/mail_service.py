@@ -22,8 +22,11 @@ class MailService:
     """Service for sending emails through kube-mail."""
     
     def __init__(self):
-        self.host = settings.kube_mail_host
-        self.port = settings.kube_mail_port
+        self.host = settings.smtp_host
+        self.port = settings.smtp_port
+        self.username = settings.smtp_username
+        self.password = settings.smtp_password
+        self.use_tls = getattr(settings, 'use_tls', False)  # Default to False for postfix relay
         self.from_email = settings.from_email
         self.from_name = settings.from_name
         self.email_history: List[EmailHistory] = []
@@ -49,8 +52,8 @@ class MailService:
             # Create email message
             message = await self._create_email_message(email_request, message_id)
             
-            # Send email through kube-mail
-            await self._send_via_kube_mail(message, email_request.to)
+            # Send email through SMTP
+            await self._send_via_smtp(message, email_request.to)
             
             # Update status
             email_history.status = EmailStatus.SENT
@@ -128,21 +131,28 @@ class MailService:
             except Exception as e:
                 logger.error(f"Error adding attachment {file_path}: {str(e)}")
     
-    async def _send_via_kube_mail(self, message: MIMEMultipart, recipients: List[str]):
-        """Send email through kube-mail SMTP server."""
+    async def _send_via_smtp(self, message: MIMEMultipart, recipients: List[str]):
+        """Send email through SMTP server."""
         try:
-            # Connect to kube-mail SMTP server
-            smtp = aiosmtplib.SMTP(hostname=self.host, port=self.port)
+            # Connect to SMTP server
+            smtp = aiosmtplib.SMTP(hostname=self.host, port=self.port, use_tls=self.use_tls)
             await smtp.connect()
+            
+            if self.use_tls:
+                await smtp.starttls()
+            
+            # Login if credentials are provided (not needed for whitelisted IPs)
+            if self.username and self.password:
+                await smtp.login(self.username, self.password)
             
             # Send email
             await smtp.send_message(message)
             await smtp.quit()
             
-            logger.info(f"Email sent to {len(recipients)} recipients via kube-mail")
+            logger.info(f"Email sent to {len(recipients)} recipients via SMTP")
             
         except Exception as e:
-            logger.error(f"Failed to send email via kube-mail: {str(e)}")
+            logger.error(f"Failed to send email via SMTP: {str(e)}")
             raise
     
     async def get_email_history(self, limit: int = 50) -> List[EmailHistory]:
@@ -156,15 +166,22 @@ class MailService:
                 return email
         return None
     
-    async def check_kube_mail_connection(self) -> bool:
-        """Check if kube-mail service is reachable."""
+    async def check_smtp_connection(self) -> bool:
+        """Check if SMTP service is reachable."""
         try:
-            smtp = aiosmtplib.SMTP(hostname=self.host, port=self.port)
+            smtp = aiosmtplib.SMTP(hostname=self.host, port=self.port, use_tls=self.use_tls)
             await smtp.connect()
+            
+            if self.use_tls:
+                await smtp.starttls()
+            
+            if self.username and self.password:
+                await smtp.login(self.username, self.password)
+            
             await smtp.quit()
             return True
         except Exception as e:
-            logger.error(f"kube-mail connection check failed: {str(e)}")
+            logger.error(f"SMTP connection check failed: {str(e)}")
             return False
 
 

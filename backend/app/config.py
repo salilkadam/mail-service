@@ -8,8 +8,11 @@ class Settings(BaseSettings):
     """Application settings."""
     
     # Mail Configuration
-    kube_mail_host: str = "kube-mail.kube-system.svc.cluster.local"
-    kube_mail_port: int = 25
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    use_tls: bool = True
     from_email: str = "info@bionicaisolutions.com"
     from_name: str = "Bionic AI Solutions"
     

@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="Mail service for sending emails via kube-mail",
+    description="Mail service for sending emails via SMTP",
     debug=settings.debug
 )
 
@@ -40,8 +40,9 @@ app.include_router(router, prefix="/api/v1")
 async def startup_event():
     """Application startup event."""
     logger.info(f"Starting {settings.app_name} v{settings.app_version}")
-    logger.info(f"kube-mail host: {settings.kube_mail_host}:{settings.kube_mail_port}")
+    logger.info(f"SMTP host: {settings.smtp_host}:{settings.smtp_port}")
     logger.info(f"From email: {settings.from_email}")
+    logger.info(f"TLS enabled: {settings.use_tls}")
 
 # Shutdown event
 @app.on_event("shutdown")

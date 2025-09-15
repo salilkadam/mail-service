@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smtp-relay
+  namespace: mail-service-prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: smtp-relay
+  template:
+    metadata:
+      labels:
+        app: smtp-relay
+    spec:
+      containers:
+      - name: smtp-relay
+        image: namshi/smtp
+        ports:
+        - containerPort: 25
+        env:
+        - name: SMARTHOST_ADDRESS
+          value: smtp-relay.gmail.com
+        - name: SMARTHOST_PORT
+          value: "587"
+        - name: SMARTHOST_USER
+          value: ""
+        - name: SMARTHOST_PASSWORD
+          value: ""
+        - name: SMARTHOST_ALIASES
+          value: "*"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: smtp-relay
+  namespace: mail-service-prod
+spec:
+  selector:
+    app: smtp-relay
+  ports:
+  - port: 25
+    targetPort: 25
+  type: ClusterIP

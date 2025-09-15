@@ -1,8 +1,26 @@
 """Validation utilities for the mail service."""
 
+import os
 from typing import Any, Dict, List, Optional
 from pydantic import ValidationError
 from fastapi import HTTPException, status
+from email_validator import validate_email, EmailNotValidError
+
+
+# Constants for attachment validation
+MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024  # 10MB
+ALLOWED_MIME_TYPES = {
+    '.pdf': 'application/pdf',
+    '.doc': 'application/msword',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.xls': 'application/vnd.ms-excel',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.gif': 'image/gif',
+    '.txt': 'text/plain',
+}
 
 
 class ValidationResult:
@@ -52,16 +70,35 @@ def validate_email_request(data: Dict[str, Any]) -> ValidationResult:
     """Validate email request data."""
     try:
         from .models import EmailRequest
-        EmailRequest(**data)
+        
+        # Validate basic structure
+        email_request = EmailRequest(**data)
+        
+        # Validate email addresses
+        all_emails = email_request.to[:]
+        if email_request.cc:
+            all_emails.extend(email_request.cc)
+        if email_request.bcc:
+            all_emails.extend(email_request.bcc)
+        
+        email_validation = validate_email_addresses(all_emails)
+        if not email_validation.is_valid:
+            return email_validation
+        
+        # Validate attachments if present
+        if email_request.attachments:
+            attachment_validation = validate_attachments(email_request.attachments)
+            if not attachment_validation.is_valid:
+                return attachment_validation
+        
         return ValidationResult(is_valid=True)
+        
     except ValidationError as e:
         return ValidationResult(is_valid=False, errors=e.errors())
 
 
 def validate_email_addresses(emails: List[str]) -> ValidationResult:
     """Validate list of email addresses."""
-    from email_validator import validate_email, EmailNotValidError
-    
     errors = []
     for i, email in enumerate(emails):
         try:
@@ -71,5 +108,38 @@ def validate_email_addresses(emails: List[str]) -> ValidationResult:
     
     if errors:
         return ValidationResult(is_valid=False, errors={"email_validation": errors})
+    
+    return ValidationResult(is_valid=True)
+
+
+def validate_attachments(attachments: List[str]) -> ValidationResult:
+    """Validate email attachments."""
+    errors = []
+    
+    for attachment_path in attachments:
+        try:
+            # Check if file exists
+            if not os.path.exists(attachment_path):
+                errors.append(f"Attachment not found: {attachment_path}")
+                continue
+            
+            # Check file size
+            file_size = os.path.getsize(attachment_path)
+            if file_size > MAX_ATTACHMENT_SIZE:
+                errors.append(
+                    f"Attachment too large: {attachment_path} "
+                    f"({file_size / 1024 / 1024:.1f}MB > {MAX_ATTACHMENT_SIZE / 1024 / 1024:.1f}MB)"
+                )
+            
+            # Check file type
+            _, ext = os.path.splitext(attachment_path.lower())
+            if ext not in ALLOWED_MIME_TYPES:
+                errors.append(f"Unsupported file type: {ext} for {attachment_path}")
+            
+        except Exception as e:
+            errors.append(f"Error validating attachment {attachment_path}: {str(e)}")
+    
+    if errors:
+        return ValidationResult(is_valid=False, errors={"attachment_validation": errors})
     
     return ValidationResult(is_valid=True)
