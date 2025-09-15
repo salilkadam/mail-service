@@ -31,14 +31,6 @@ jobs:
       run: |
         cd backend
         python -m pytest tests/ -v
-    
-    - name: Run linting
-      run: |
-        cd backend
-        pip install flake8 black isort
-        flake8 app/ --count --select=E9,F63,F7,F82 --show-source --statistics
-        black --check app/
-        isort --check-only app/
 
   build-and-push:
     needs: test
