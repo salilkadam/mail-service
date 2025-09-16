@@ -15,11 +15,12 @@ from .auth import (
     get_password_hash,
     verify_password,
 )
+from .logging_config import RequestLogger, get_logger, set_request_context
 from .mail_service import mail_service
 from .models import EmailHistory, EmailRequest, EmailResponse, HealthCheck
 from .validation import ValidationResult, validate_email_request
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Create API router
 router = APIRouter()
@@ -46,30 +47,78 @@ async def send_email(
     email_request: EmailRequest, current_user: User = Depends(get_current_active_user)
 ):
     """Send an email through kube-mail."""
-    try:
-        # Validate the request
-        validation_result = validate_email_request(email_request.dict())
-        validation_result.raise_if_invalid()
-
-        # Send email
-        response = await mail_service.send_email(email_request)
-
-        if response.status.value == "failed":
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to send email: {response.error_message}",
+    with RequestLogger("api_send_email", logger, user_id=current_user.email) as req_logger:
+        try:
+            # Set user context for logging
+            set_request_context(user_id=current_user.email)
+            
+            logger.info(
+                "Received email send request",
+                extra={
+                    "user_id": current_user.email,
+                    "to": email_request.to,
+                    "subject": email_request.subject,
+                    "has_attachments": bool(email_request.attachments),
+                }
             )
 
-        return response
+            # Validate the request
+            logger.debug("Validating email request", extra={"user_id": current_user.email})
+            validation_result = validate_email_request(email_request.dict())
+            validation_result.raise_if_invalid()
+            logger.debug("Email request validation successful", extra={"user_id": current_user.email})
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Unexpected error sending email: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error while sending email",
-        )
+            # Send email
+            logger.info("Sending email via mail service", extra={"user_id": current_user.email})
+            response = await mail_service.send_email(email_request)
+
+            if response.status.value == "failed":
+                logger.error(
+                    "Email sending failed",
+                    extra={
+                        "user_id": current_user.email,
+                        "message_id": response.message_id,
+                        "error_message": response.error_message,
+                        "to": email_request.to,
+                        "subject": email_request.subject,
+                    }
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to send email: {response.error_message}",
+                )
+
+            logger.info(
+                "Email sent successfully via API",
+                extra={
+                    "user_id": current_user.email,
+                    "message_id": response.message_id,
+                    "to": email_request.to,
+                    "subject": email_request.subject,
+                    "sent_at": response.sent_at.isoformat() if response.sent_at else None,
+                }
+            )
+
+            return response
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(
+                "Unexpected error in send_email API",
+                extra={
+                    "user_id": current_user.email,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "to": email_request.to,
+                    "subject": email_request.subject,
+                },
+                exc_info=True
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal server error while sending email",
+            )
 
 
 @router.get("/history", response_model=List[EmailHistory])

@@ -23,6 +23,22 @@ class Settings(BaseSettings):
     debug: bool = False
     log_level: str = "INFO"
 
+    # Enhanced Logging Configuration
+    log_format: str = "json"  # json, text
+    log_file_enabled: bool = False
+    log_file_path: str = "./logs/app.log"
+    log_max_files: int = 5
+    log_max_size: str = "10m"
+    log_include_request_id: bool = True
+    log_include_user_info: bool = True
+    log_include_sensitive_data: bool = False  # Set to True for debugging
+    log_performance_metrics: bool = True
+    log_smtp_details: bool = False  # Set to True for SMTP debugging
+    log_email_content: bool = False  # Set to True to log email content (be careful with sensitive data)
+    log_correlation_id: bool = True
+    log_request_response: bool = False  # Set to True to log full request/response
+    log_slow_requests_threshold: float = 1.0  # Log requests slower than this (seconds)
+
     # Security
     secret_key: str = "your-secret-key-here"
     access_token_expire_minutes: int = 30

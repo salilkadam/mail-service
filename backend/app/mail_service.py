@@ -13,10 +13,17 @@ from typing import List, Optional
 import aiosmtplib
 
 from .config import settings
+from .logging_config import (
+    RequestLogger,
+    get_logger,
+    log_email_content,
+    log_sensitive_data,
+    log_smtp_details,
+)
 from .models import EmailHistory, EmailRequest, EmailResponse, EmailStatus
 from .validation import ValidationResult
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class MailService:
@@ -37,65 +44,111 @@ class MailService:
     async def send_email(self, email_request: EmailRequest) -> EmailResponse:
         """Send an email through kube-mail."""
         message_id = str(uuid.uuid4())
+        email_history = None
 
-        try:
-            # Create email history entry
-            email_history = EmailHistory(
-                message_id=message_id,
-                status=EmailStatus.PENDING,
-                to=email_request.to,
-                cc=email_request.cc,
-                bcc=email_request.bcc,
-                subject=email_request.subject,
-                body=email_request.body,
-                is_html=email_request.is_html,
-            )
-            self.email_history.append(email_history)
+        with RequestLogger("send_email", logger, message_id=message_id) as req_logger:
+            try:
+                # Log email request details
+                logger.info(
+                    "Processing email send request",
+                    extra={
+                        "message_id": message_id,
+                        "to": email_request.to,
+                        "cc": email_request.cc,
+                        "bcc": email_request.bcc,
+                        "subject": email_request.subject,
+                        "is_html": email_request.is_html,
+                        "has_attachments": bool(email_request.attachments),
+                        "attachment_count": len(email_request.attachments) if email_request.attachments else 0,
+                        "body_length": len(email_request.body),
+                        "body_preview": log_email_content(email_request.body[:100] + "..." if len(email_request.body) > 100 else email_request.body),
+                    }
+                )
 
-            # Create email message
-            message = await self._create_email_message(email_request, message_id)
+                # Create email history entry
+                email_history = EmailHistory(
+                    message_id=message_id,
+                    status=EmailStatus.PENDING,
+                    to=email_request.to,
+                    cc=email_request.cc,
+                    bcc=email_request.bcc,
+                    subject=email_request.subject,
+                    body=email_request.body,
+                    is_html=email_request.is_html,
+                )
+                self.email_history.append(email_history)
 
-            # Collect all recipients (to, cc, bcc)
-            all_recipients = email_request.to[:]
-            if email_request.cc:
-                all_recipients.extend(email_request.cc)
-            if email_request.bcc:
-                all_recipients.extend(email_request.bcc)
+                # Create email message
+                logger.debug("Creating email message", extra={"message_id": message_id})
+                message = await self._create_email_message(email_request, message_id)
 
-            # Send email through SMTP
-            await self._send_via_smtp(message, all_recipients)
+                # Collect all recipients (to, cc, bcc)
+                all_recipients = email_request.to[:]
+                if email_request.cc:
+                    all_recipients.extend(email_request.cc)
+                if email_request.bcc:
+                    all_recipients.extend(email_request.bcc)
 
-            # Update status
-            email_history.status = EmailStatus.SENT
-            email_history.sent_at = datetime.utcnow()
+                logger.info(
+                    "Prepared email for sending",
+                    extra={
+                        "message_id": message_id,
+                        "total_recipients": len(all_recipients),
+                        "to_count": len(email_request.to),
+                        "cc_count": len(email_request.cc) if email_request.cc else 0,
+                        "bcc_count": len(email_request.bcc) if email_request.bcc else 0,
+                    }
+                )
 
-            logger.info(f"Email sent successfully. Message ID: {message_id}")
+                # Send email through SMTP
+                await self._send_via_smtp(message, all_recipients, message_id)
 
-            return EmailResponse(
-                message_id=message_id,
-                status=EmailStatus.SENT,
-                to=email_request.to,
-                subject=email_request.subject,
-                sent_at=email_history.sent_at,
-            )
+                # Update status
+                email_history.status = EmailStatus.SENT
+                email_history.sent_at = datetime.utcnow()
 
-        except Exception as e:
-            # Update status to failed
-            if email_history:
-                email_history.status = EmailStatus.FAILED
-                email_history.error_message = str(e)
+                logger.info(
+                    "Email sent successfully",
+                    extra={
+                        "message_id": message_id,
+                        "sent_at": email_history.sent_at.isoformat(),
+                        "recipients": all_recipients,
+                    }
+                )
 
-            logger.error(
-                f"Failed to send email. Message ID: {message_id}. Error: {str(e)}"
-            )
+                return EmailResponse(
+                    message_id=message_id,
+                    status=EmailStatus.SENT,
+                    to=email_request.to,
+                    subject=email_request.subject,
+                    sent_at=email_history.sent_at,
+                )
 
-            return EmailResponse(
-                message_id=message_id,
-                status=EmailStatus.FAILED,
-                to=email_request.to,
-                subject=email_request.subject,
-                error_message=str(e),
-            )
+            except Exception as e:
+                # Update status to failed
+                if email_history:
+                    email_history.status = EmailStatus.FAILED
+                    email_history.error_message = str(e)
+
+                logger.error(
+                    "Failed to send email",
+                    extra={
+                        "message_id": message_id,
+                        "error_type": type(e).__name__,
+                        "error_message": str(e),
+                        "to": email_request.to,
+                        "subject": email_request.subject,
+                    },
+                    exc_info=True
+                )
+
+                return EmailResponse(
+                    message_id=message_id,
+                    status=EmailStatus.FAILED,
+                    to=email_request.to,
+                    subject=email_request.subject,
+                    error_message=str(e),
+                )
 
     async def _create_email_message(
         self, email_request: EmailRequest, message_id: str
@@ -145,31 +198,75 @@ class MailService:
             except Exception as e:
                 logger.error(f"Error adding attachment {file_path}: {str(e)}")
 
-    async def _send_via_smtp(self, message: MIMEMultipart, recipients: List[str]):
+    async def _send_via_smtp(self, message: MIMEMultipart, recipients: List[str], message_id: str):
         """Send email through SMTP server."""
-        try:
-            # Connect to SMTP server
-            smtp = aiosmtplib.SMTP(
-                hostname=self.host, port=self.port, use_tls=self.use_tls
-            )
-            await smtp.connect()
+        with RequestLogger("smtp_send", logger, message_id=message_id) as req_logger:
+            try:
+                # Log SMTP connection details
+                smtp_details = log_smtp_details({
+                    "host": self.host,
+                    "port": self.port,
+                    "use_tls": self.use_tls,
+                    "has_credentials": bool(self.username and self.password),
+                    "username": log_sensitive_data(self.username, "smtp_username") if self.username else None,
+                })
+                
+                logger.info(
+                    "Connecting to SMTP server",
+                    extra={
+                        "message_id": message_id,
+                        "recipients_count": len(recipients),
+                        **smtp_details
+                    }
+                )
 
-            if self.use_tls:
-                await smtp.starttls()
+                # Connect to SMTP server
+                smtp = aiosmtplib.SMTP(
+                    hostname=self.host, port=self.port, use_tls=self.use_tls
+                )
+                await smtp.connect()
+                logger.debug("SMTP connection established", extra={"message_id": message_id})
 
-            # Login if credentials are provided (not needed for whitelisted IPs)
-            if self.username and self.password:
-                await smtp.login(self.username, self.password)
+                if self.use_tls:
+                    await smtp.starttls()
+                    logger.debug("TLS started", extra={"message_id": message_id})
 
-            # Send email to all recipients (to, cc, bcc)
-            await smtp.send_message(message)
-            await smtp.quit()
+                # Login if credentials are provided (not needed for whitelisted IPs)
+                if self.username and self.password:
+                    await smtp.login(self.username, self.password)
+                    logger.debug("SMTP authentication successful", extra={"message_id": message_id})
+                else:
+                    logger.debug("Skipping SMTP authentication (no credentials)", extra={"message_id": message_id})
 
-            logger.info(f"Email sent to {len(recipients)} recipients via SMTP")
+                # Send email to all recipients (to, cc, bcc)
+                logger.debug("Sending email message", extra={"message_id": message_id, "recipients": recipients})
+                await smtp.send_message(message)
+                await smtp.quit()
+                logger.debug("SMTP connection closed", extra={"message_id": message_id})
 
-        except Exception as e:
-            logger.error(f"Failed to send email via SMTP: {str(e)}")
-            raise
+                logger.info(
+                    "Email sent successfully via SMTP",
+                    extra={
+                        "message_id": message_id,
+                        "recipients_count": len(recipients),
+                        "recipients": recipients,
+                    }
+                )
+
+            except Exception as e:
+                logger.error(
+                    "Failed to send email via SMTP",
+                    extra={
+                        "message_id": message_id,
+                        "error_type": type(e).__name__,
+                        "error_message": str(e),
+                        "smtp_host": self.host,
+                        "smtp_port": self.port,
+                        "use_tls": self.use_tls,
+                    },
+                    exc_info=True
+                )
+                raise
 
     async def get_email_history(self, limit: int = 50) -> List[EmailHistory]:
         """Get email history."""
